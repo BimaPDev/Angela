@@ -1,0 +1,14 @@
+# node / expo
+client/node_modules/
+client/.expo/
+client/.expo-shared/
+client/.cache/
+# python venv + caches
+server/python/.venv/
+**/__pycache__/
+# local assets
+uploads/
+# build outputs
+dist/
+build/
+.DS_Store
