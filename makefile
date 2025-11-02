@@ -34,7 +34,7 @@ dev:
 	  go run ./cmd/api ) & \
 	( cd $(CLIENT_DIR) && \
 	  EXPO_PUBLIC_API_BASE="$(API_BASE)" \
-	  npx expo start ) & \
+	  npx expo start -c ) & \
 	wait
 
 # Start Expo app only (uses detected IP)

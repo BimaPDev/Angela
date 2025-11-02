@@ -1,10 +1,13 @@
-# /Users/bimap/Documents/Coding/Project/AngelaClothes/server/python/bgrm.py
-import sys
-try:
-    import pillow_heif; pillow_heif.register_heif_opener()
-except Exception:
-    pass
+# server/python/bgrm.py
+import sys, io
+from PIL import Image
 from rembg import remove
 
 data = sys.stdin.buffer.read()
-sys.stdout.buffer.write(remove(data))
+if not data:
+    sys.exit("no input")
+img = Image.open(io.BytesIO(data)).convert("RGBA")
+out = remove(img)
+buf = io.BytesIO()
+out.save(buf, format="PNG")
+sys.stdout.buffer.write(buf.getvalue())

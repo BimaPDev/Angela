@@ -1,64 +1,65 @@
 package main
 
 import (
-	"bytes"
-	"context"
-	"io"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
-	"os"
-	"os/exec"
-	"time"
 )
 
-func removeBG(w http.ResponseWriter, r *http.Request) {
-	// 50 MB limit
-	if err := r.ParseMultipartForm(50 << 20); err != nil {
-		http.Error(w, "bad multipart: "+err.Error(), 400)
-		return
+func hello(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprint(w, "hello world")
+}
+
+func headers(w http.ResponseWriter, req *http.Request) {
+	for name, headers := range req.Header {
+		for _, h := range headers {
+			fmt.Fprintf(w, "%s: %s\n", name, h)
+		}
 	}
-	f, _, err := r.FormFile("file")
+}
+
+func getLocalIPv4() (string, error) {
+	ifaces, err := net.Interfaces()
 	if err != nil {
-		http.Error(w, "file missing: "+err.Error(), 400)
-		return
+		return "", err
 	}
-	defer f.Close()
-	src, err := io.ReadAll(f)
-	if err != nil {
-		http.Error(w, "read file: "+err.Error(), 500)
-		return
+	for _, iface := range ifaces {
+		// Skip down or loopback interfaces
+		if iface.Flags&(net.FlagUp|net.FlagLoopback) != net.FlagUp {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, a := range addrs {
+			if ipnet, ok := a.(*net.IPNet); ok && ipnet.IP.To4() != nil && !ipnet.IP.IsLoopback() {
+				return ipnet.IP.String(), nil
+			}
+		}
 	}
-
-	py := os.Getenv("PYTHON_BIN")
-	if py == "" {
-		py = "/Users/bimap/Documents/Coding/Project/AngelaClothes/server/python/.venv/bin/python" // be explicit
-	}
-	script := "/Users/bimap/Documents/Coding/Project/AngelaClothes/server/python/bgrm.py"
-	log.Printf("using python=%s script=%s", py, script)
-
-	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
-	defer cancel()
-	
-	cmd := exec.CommandContext(ctx, py, script)
-	cmd.Stdin = bytes.NewReader(src)
-	var out, errBuf bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errBuf
-
-	if err := cmd.Run(); err != nil {
-		log.Printf("rembg err=%v stderr=%q", err, errBuf.String())
-		http.Error(w, "rembg failed: "+err.Error()+" | "+errBuf.String(), 500)
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/png")
-	w.WriteHeader(200)
-	w.Write(out.Bytes())
+	return "", fmt.Errorf("no IPv4 address found")
 }
 
 func main() {
-	http.HandleFunc("/remove-bg", removeBG)
-	http.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("OK")) })
-	log.Println("Listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	ip, err := getLocalIPv4()
+	if err != nil {
+		log.Printf("could not detect LAN IP: %v", err)
+	}
+
+	port := "8090"
+	mux := http.NewServeMux()
+	mux.HandleFunc("/hello", hello)
+	mux.HandleFunc("/headers", headers)
+
+	if ip != "" {
+		log.Printf("listening on http://%s:%s", ip, port)
+	}
+	log.Printf("also on http://localhost:%s", port)
+
+	addr := ":" + port // Listen on all interfaces
+	if err := http.ListenAndServe(addr, mux); err != nil {
+		log.Fatal(err)
+	}
 }
