@@ -1,16 +1,15 @@
 {
   "expo": {
-    "name": "client",
-    "slug": "client",
+    "name": "MixMatch",
+    "slug": "MixMatch",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "client",
+    "scheme": "mixmatch",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.client"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
